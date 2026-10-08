@@ -21,6 +21,10 @@ Replay and statistics tools. All of them read recorded traces and need no GPU or
 | `trackrecord_premise.py` | How often a no-op's control had already worked on the level (whether trackrecord's note would be new). |
 | `trackrecord.py` | The trackrecord arm: each NO-OP verdict also states the control's record on that level so far. |
 | `build_paper_notebook.py` | Builds a notebook that embeds these modules verbatim and reproduces the reported numbers. |
+| `build_arm_cell.py` | Builds an intervention ("arm") notebook: inserts one patch cell into a pinned Milestone-2 notebook. Arms: unanchor, ctrlprobe, trackrecord, inventory, knobs6 and others. |
+| `commit_bypass.py` | Rewrites a Milestone-2 notebook so the model runs only in Kaggle's scored rerun; the commit run writes a placeholder submission. Saves weekly GPU quota for leaderboard-only arms. |
+| `nb_diff.py` | Static diff of two Kaggle notebooks: environment switches, matched cells, unified diff. Used to compare public entries with the base notebook. |
 
-`ctrlprobe.py` and `trackrecord.py` patch the dfranzen Milestone-2 harness at import time. Their tests fake the
+`build_arm_cell.py` and `commit_bypass.py` take a Milestone-2 notebook as input (not included here; it is
+public on Kaggle). `ctrlprobe.py` and `trackrecord.py` patch the dfranzen Milestone-2 harness at import time. Their tests fake the
 harness, and also check against the real harness source when it is present on disk (set `FI939_M2_SOLVER`).

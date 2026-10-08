@@ -13,11 +13,11 @@ one variable.
 | path | what |
 |---|---|
 | [FINDINGS.md](FINDINGS.md) | results so far, including the failures and the claims we withdrew |
-| [analysis/](analysis/) | the replay and statistics tools behind those results, each with its tests |
+| [analysis/](analysis/) | the replay and statistics tools behind those results, and the arm builders, each with its tests |
 
 ## Running
 
-The tools need Python 3.10+ and the standard library; `make_fig2.py` also needs matplotlib. Each tool reads the
+The tools need Python 3.10+ and the standard library; `make_fig2.py` also needs matplotlib, and `test_commit_bypass.py` needs pandas with pyarrow. Each tool reads the
 per-game-pass logs the harness writes (`*_events.jsonl`, one row per executed action with the board after it, and
 `*_requests.jsonl`, what the model saw and wrote). Every test file runs on its own:
 
