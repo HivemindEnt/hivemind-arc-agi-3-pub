@@ -16,6 +16,13 @@ null. Every result below is labelled as holding, mixed, or withdrawn.
 
 ## Where the points go
 
+- **Unfinished levels, not inefficiency (holds).** `loss_decompose.py` splits the official score exactly. On the
+  two 25-game, 4-pass runs, 97% of the lost points are levels never finished, and 3% are extra actions on finished
+  levels: 51.9 vs 1.6 points (unanchor) and 58.6 vs 1.9 (ctrlprobe). On finished levels the agent is about as
+  efficient as the human baseline. Arms that only save actions can therefore recover at most a few points; an arm
+  has to clear more levels to matter. The first uncleared level per game-pass is L1 in about 10%, L2 in 11-17% and
+  L3 or later in 50%; 22-30% of game-passes clear every level.
+
 - **Goal identification is mostly not the problem.** In 5 of 9 hand-read failed episodes the model stated the
   right goal and kept it.
 - **Level-boundary anchoring (holds, replicated).** Failed level-2+ attempts appeal to the previous level

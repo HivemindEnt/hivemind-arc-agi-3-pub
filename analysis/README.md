@@ -6,6 +6,7 @@ Replay and statistics tools. All of them read recorded traces and need no GPU or
 | tool | question it answers |
 |---|---|
 | `duck_score_estimate.py` | Official-formula score estimate from traces: per level min((human/agent actions)^2, 1.15), level-weighted. |
+| `loss_decompose.py` | Splits the points lost into unfinished levels vs inefficiency on finished levels; where runs get stuck. |
 | `loadsim_power.py` | How large an effect one multi-pass run can detect (pass-to-pass variance, MDE at 80% power). |
 | `make_fig2.py` | Figure 2: minimum detectable effect against passes per arm. |
 | `targeted_gate.py` | Pre-registered pass/fail reading for a targeted arm against a same-shape base. |
