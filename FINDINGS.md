@@ -35,6 +35,7 @@ null. Every result below is labelled as holding, mixed, or withdrawn.
 | After the game contradicts a "does nothing" statement, does the agent revise? | `replay_revise.py` | Mostly yes. It revises in 59% of cases (67% for present-tense beliefs), usually within one turn. 17% restate a no-op, and on a hand read these are mostly accurate statements about a different board position. | holds |
 | Earlier claim: "the agent designs good experiments but draws bad conclusions" | | Too strong. The revision test above contradicts it. Most "does nothing" statements are accurate local reports. | withdrawn |
 | On a new level, does the agent click object types that just appeared? | `new_object_clicks.py` | Early, but below chance overall. The first such click comes at a median 12% of the level, but these objects get 0.60-0.62 of the clicks their share of the board would predict. bp35: 0.3-0.4. lf52: 0.2. | holds; premise check for the inventory arm |
+| When an action does nothing, had that control already worked on the level? | `trackrecord_premise.py` | Usually. 73-82% of no-ops, about 6-11 per game pass, and typically 2 of 3 earlier tries had worked. The agent is not told this today. | holds; premise check for the trackrecord arm |
 
 ## Interventions (offline A/B on the 25 public games)
 

@@ -17,6 +17,7 @@ Replay and statistics tools. All of them read recorded traces and need no GPU or
 | `replay_revise.py` | After the game contradicts a "does nothing" statement, does the agent revise? |
 | `new_object_clicks.py` | On a new level, does the agent click object types that just appeared, compared with chance? |
 | `ctrlprobe.py` | The `probe_controls()` sandbox diagnostic used by the ctrlprobe arm. |
+| `trackrecord_premise.py` | How often a no-op's control had already worked on the level (whether trackrecord's note would be new). |
 | `trackrecord.py` | The trackrecord arm: each NO-OP verdict also states the control's record on that level so far. |
 | `build_paper_notebook.py` | Builds a notebook that embeds these modules verbatim and reproduces the reported numbers. |
 
