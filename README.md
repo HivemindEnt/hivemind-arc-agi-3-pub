@@ -37,4 +37,7 @@ relevant content of each entry is summarised in FINDINGS.md.
 
 ## Licence
 
-Apache-2.0, see [LICENSE](LICENSE). Third-party harness code is not included here.
+MIT-0 (MIT No Attribution), see [LICENSE](LICENSE). The ARC Prize 2026 rules ask for code authored by the
+submitter to be released under a permissive public-domain-style licence such as CC0 or MIT-0; this repo was
+first published under Apache-2.0 and relicensed to MIT-0 on 2026-10-08. Third-party harness code is not included
+here; dfranzen's Milestone-2 harness is Apache-2.0 under its own repository.
