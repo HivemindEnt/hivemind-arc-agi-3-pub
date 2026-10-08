@@ -19,6 +19,7 @@ Replay and statistics tools. All of them read recorded traces and need no GPU or
 | `new_object_clicks.py` | On a new level, does the agent click object types that just appeared, compared with chance? |
 | `ctrlprobe.py` | The `probe_controls()` sandbox diagnostic used by the ctrlprobe arm. |
 | `trackrecord_premise.py` | How often a no-op's control had already worked on the level (whether trackrecord's note would be new). |
+| `watchdog_premise.py` | Would a stuck-level watchdog help? Voluntary vs forced RESETs, how often levels still open after T actions or turns are cleared later, restarts after GAME_OVER. |
 | `trackrecord.py` | The trackrecord arm: each NO-OP verdict also states the control's record on that level so far. |
 | `build_paper_notebook.py` | Builds a notebook that embeds these modules verbatim and reproduces the reported numbers. |
 | `build_arm_cell.py` | Builds an intervention ("arm") notebook: inserts one patch cell into a pinned Milestone-2 notebook. Arms: unanchor, ctrlprobe, trackrecord, inventory, knobs6 and others. |
