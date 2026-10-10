@@ -68,6 +68,12 @@ null. Every result below is labelled as holding, mixed, or withdrawn.
   standard deviation is bounded only loosely, so we size repeats from that bound.
 - A public notebook's "best score" is the maximum over everyone who resubmitted that version, so it overstates
   what the code typically scores.
+- Identical-code test: we submitted the original public Milestone-2 notebook unchanged from our account on two
+  consecutive days at the same time. It scored 28.49, then 23.63. That straddles all five scores of our own copies
+  (25.07-25.96), so the apparent 2-point gap to other accounts is noise. Pooled run-to-run sd is about 2.4 (about
+  1.6 across the ten Milestone-2-family scores we know of). At that noise a +2 gain needs roughly 24 hidden scores
+  per side, so the hidden leaderboard can only confirm large changes; our earlier two agreeing scores (0.03 apart)
+  were luck. This is why our interventions are judged offline over many passes.
 
 ## Earlier work on the Duck harness (failures included)
 

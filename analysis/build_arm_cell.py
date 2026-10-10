@@ -231,6 +231,46 @@ CELLS["knobs6"] = (
     "print('[KNOBS6] six M2 switches live (DUCK 38cg): %s' % ', '.join(sorted(_k6_live)), flush=True)\n"
 )
 
+CELLS["compact"] = (
+    "# --- FI-939 arm compact (DUCK 38cl): rolling history summaries (compaction), M2's own switches ---\n"
+    "# 38ce field scan: OpenAI tripled its ARC-AGI-3 score with compaction in place of rolling truncation. M2 ships the\n"
+    "# mechanism (harness patch: _maybe_append_rolling_summary) but leaves it off, so history is only truncated.\n"
+    "# Rolling mode per the harness docstrings: a summary every 12k new tokens (well under the 58k drain, several\n"
+    "# candidates per drop), the drain may stop early at a summary, and the request is told what just happened.\n"
+    "# Worst case equals today's drain. Not the aggressive SUMMARY_REPLACES_HISTORY mode; thinking stays off.\n"
+    "import os as _cp_os\n"
+    "import inference.agent.tool_agent as _cp_ta\n"
+    "for _a in ('_summary_interval_tokens', '_drain_stop_at_summaries', '_summary_turn_context', '_summary_replaces_history'):\n"
+    "    if not callable(getattr(_cp_ta, _a, None)):\n"
+    "        raise RuntimeError('[COMPACT] tool_agent.%s missing: harness version changed' % _a)\n"
+    "_CP = {'ARC3_SUMMARY_INTERVAL_TOKENS': '12288', 'ARC3_DRAIN_STOP_AT_SUMMARIES': '1', 'ARC3_SUMMARY_TURN_CONTEXT': '1'}\n"
+    "_cp_os.environ.update(_CP)\n"
+    "_cp_live = {'interval': _cp_ta._summary_interval_tokens() == 12288, 'drain_stop': _cp_ta._drain_stop_at_summaries() is True,\n"
+    "            'turn_context': _cp_ta._summary_turn_context() is True, 'replaces_off': _cp_ta._summary_replaces_history() is False}\n"
+    "if not all(_cp_live.values()):\n"
+    "    raise RuntimeError('[COMPACT] switches not live: %r' % _cp_live)\n"
+    "print('[COMPACT] rolling summaries every 12288 tokens, drain stops at summaries (DUCK 38cl)', flush=True)\n"
+)
+
+CELLS["pace"] = (
+    "# --- FI-939 arm pace (DUCK 38cl): pace-aware GPU-slot priority, one M2 switch ---\n"
+    "# 38ci: unfinished levels look time-bound. M2's priority scheduler is on (refresh, tail fade) but ARC3_PRIORITY_PACE\n"
+    "# is '0'. With it on, a game whose levels have cost more tokens than the reference gets a lower slot priority\n"
+    "# (multiplier clamped to 0.5..2, confidence grows with completed levels), so slots move to games clearing cheaply.\n"
+    "import os as _pc_os\n"
+    "import inference.agent.tool_agent as _pc_ta\n"
+    "for _a in ('_pace_reference_tokens', '_get_env_bool'):\n"
+    "    if not callable(getattr(_pc_ta, _a, None)):\n"
+    "        raise RuntimeError('[PACE] tool_agent.%s missing: harness version changed' % _a)\n"
+    "if not _pc_ta._get_env_bool('ARC3_PRIORITY_REFRESH_QUEUE', False):\n"
+    "    raise RuntimeError('[PACE] ARC3_PRIORITY_REFRESH_QUEUE is off: pace would never be used')\n"
+    "_pc_os.environ['ARC3_PRIORITY_PACE'] = '1'\n"
+    "_pc_ref = float(_pc_ta._pace_reference_tokens(1))\n"
+    "if not (_pc_ta._get_env_bool('ARC3_PRIORITY_PACE', False) and _pc_ref > 0):\n"
+    "    raise RuntimeError('[PACE] switch not live or reference missing (ref=%r)' % _pc_ref)\n"
+    "print('[PACE] ARC3_PRIORITY_PACE=1 live, L1 reference %.0f tokens (DUCK 38cl)' % _pc_ref, flush=True)\n"
+)
+
 CELLS["trackrecord"] = None
 CELLS["ctrlprobe"] = None  # built lazily from ctrlprobe.py so the cell always embeds the current source
 CELLS["ctrlprobe2"] = None

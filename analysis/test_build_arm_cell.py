@@ -305,5 +305,83 @@ class TestKnobs6AndBypass(unittest.TestCase):
         self.assertIn("[KNOBS6]", text)
         self.assertIn("FI-939 commit bypass (DUCK 38cg)", text)
 
+
+class CompactPace(unittest.TestCase):
+    """DUCK 38cl: compaction (rolling summaries) and pace arms - M2 switches set at call time, checked live."""
+
+    def _fake(self, drop=None):
+        ta = types.ModuleType("inference.agent.tool_agent")
+        env = os.environ
+        ta._get_env_bool = lambda k, d=False: env.get(k, "1" if d else "").strip().lower() in ("1", "true", "yes", "on")
+        ta._summary_interval_tokens = lambda: max(0, int(env.get("ARC3_SUMMARY_INTERVAL_TOKENS", "0") or 0))
+        ta._drain_stop_at_summaries = lambda: ta._get_env_bool("ARC3_DRAIN_STOP_AT_SUMMARIES", False)
+        ta._summary_turn_context = lambda: ta._get_env_bool("ARC3_SUMMARY_TURN_CONTEXT", False)
+        ta._summary_replaces_history = lambda: ta._get_env_bool("ARC3_SUMMARY_REPLACES_HISTORY", False)
+        ta._pace_reference_tokens = lambda level: 27011.0
+        if drop:
+            delattr(ta, drop)
+        pkg = types.ModuleType("inference"); ag = types.ModuleType("inference.agent")
+        pkg.agent, ag.tool_agent = ag, ta
+        return {"inference": pkg, "inference.agent": ag, "inference.agent.tool_agent": ta}
+
+    def _run(self, arm, mods, env=None):
+        saved = dict(os.environ)
+        try:
+            os.environ.update(env or {})
+            with unittest.mock.patch.dict(sys.modules, mods):
+                exec(compile(bac.cell_for(arm), arm, "exec"), {})
+            return dict(os.environ)
+        finally:
+            os.environ.clear(); os.environ.update(saved)
+
+    def test_compact_sets_rolling_mode_not_replace(self):
+        e = self._run("compact", self._fake())
+        self.assertEqual(e["ARC3_SUMMARY_INTERVAL_TOKENS"], "12288")
+        self.assertEqual(e["ARC3_DRAIN_STOP_AT_SUMMARIES"], "1")
+        self.assertEqual(e["ARC3_SUMMARY_TURN_CONTEXT"], "1")
+        self.assertNotIn("ARC3_SUMMARY_REPLACES_HISTORY", e)
+
+    def test_compact_interval_well_under_m2_drain(self):
+        # harness docstring: the interval should be comfortably smaller than the drain (58k in M2)
+        self.assertLess(12288 * 4, 58 * 1024)
+
+    def test_compact_refuses_on_changed_harness(self):
+        with self.assertRaises(RuntimeError):
+            self._run("compact", self._fake(drop="_drain_stop_at_summaries"))
+
+    def test_compact_refuses_if_replace_mode_was_on(self):
+        with self.assertRaises(RuntimeError):
+            self._run("compact", self._fake(), {"ARC3_SUMMARY_REPLACES_HISTORY": "1"})
+
+    def test_pace_turns_switch_on_when_priority_queue_on(self):
+        e = self._run("pace", self._fake(), {"ARC3_PRIORITY_REFRESH_QUEUE": "1", "ARC3_PRIORITY_PACE": "0"})
+        self.assertEqual(e["ARC3_PRIORITY_PACE"], "1")
+
+    def test_pace_refuses_without_priority_queue(self):
+        with self.assertRaises(RuntimeError):
+            self._run("pace", self._fake(), {"ARC3_PRIORITY_REFRESH_QUEUE": "0"})
+
+    def test_pace_refuses_on_changed_harness(self):
+        with self.assertRaises(RuntimeError):
+            self._run("pace", self._fake(drop="_pace_reference_tokens"), {"ARC3_PRIORITY_REFRESH_QUEUE": "1"})
+
+    def test_markers_and_no_em_dash(self):
+        for arm, marker in (("compact", "[COMPACT]"), ("pace", "[PACE]")):
+            c = bac.cell_for(arm)
+            self.assertIn(marker, c)
+            self.assertNotIn("\u2014", c)
+
+    def test_build_on_real_notebook_places_cell_before_benchmark(self):
+        src = os.path.expanduser("~/m2/kaggle-franzen-m2-loadsim")
+        if not os.path.isdir(src):
+            self.skipTest("no M2 loadsim source here")
+        for arm in ("compact", "pace"):
+            root = tempfile.mkdtemp()
+            out, at = bac.build(arm, src, root, arm + "-loadsim")
+            meta = json.load(open(os.path.join(out, "kernel-metadata.json")))
+            nb = json.load(open(os.path.join(out, meta["code_file"]), encoding="utf-8"))
+            self.assertEqual(meta["id"], "hivemindadmin/duck-franzen-m2-%s-loadsim" % arm)
+            self.assertTrue("".join(nb["cells"][at + 1]["source"]).startswith(bac.BENCH_MARKER))
+
 if __name__ == "__main__":
     unittest.main()
