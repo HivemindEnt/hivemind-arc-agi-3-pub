@@ -34,7 +34,7 @@ def write_pass(d, game, p, levels, fams=("ACTION1",), probe=False):
 
 nb = B.build()
 codes = [c["source"] for c in nb["cells"] if c["cell_type"] == "code"]
-check("one cell per embedded module + 7 analysis cells", len(codes) == len(B.MODULES) + 7)
+check("one cell per embedded module + 11 analysis cells", len(codes) == len(B.MODULES) + 11)
 check("modules embedded verbatim", all(repr(open(os.path.join(HERE, m), encoding="utf-8").read()) in c
                                        for m, c in zip(B.MODULES, codes)))
 check("no notebook magics", not any(line.lstrip().startswith(("%", "!")) for c in codes for line in c.split("\n")))
@@ -83,8 +83,40 @@ try:
     cp2 = subprocess.run([sys.executable, script], cwd=work, env=env, capture_output=True, text=True, timeout=600)
     check("missing arm reported and skipped", cp2.returncode == 0 and "MISSING (skipped)" in cp2.stdout
           and "targeted gate for ctrlprobe2 skipped" in cp2.stdout)
+    # 2026-10-28 (38fb): HF screen tables. 25 synthetic games incl. the 14 held-out; one arm better on held-out,
+    # one worse everywhere; environment_files present, so the official metric and the calibration run too.
+    games = B.HELDOUT + ["cn04", "ft09", "lf52", "ls20", "m0r0", "s5i5", "sc25", "sp80", "tn36", "tr87", "wa30"]
+    env = os.path.join(tmp, "env")
+    for g in games:
+        os.makedirs(os.path.join(env, g, "v1"), exist_ok=True)
+        json.dump({"game_id": g + "-0a1b2c3d", "baseline_actions": [3, 3, 3, 3, 3]},
+                  open(os.path.join(env, g, "v1", "metadata.json"), "w"))
+    lv_of = {"hf-base": 2, "hf-base-r2": 2, "hf-harn-levelpin-r3": 3, "hf-harn-deep140": 1, "hf-harn-aggr1": 1,
+             "hf-lora-g5": 2, "hf-harn-freshlook": 1}
+    for d, lv in lv_of.items():
+        for p in range(4):
+            for g in games:
+                write_pass(os.path.join(root, d, "artifacts"), g, p, lv if (g in B.HELDOUT or d.startswith("hf-base")
+                                                                            or lv < 2) else 2)
+    env3 = dict(os.environ, FI939_TRACE_ROOT=root, FI939_OUT=work, FI939_ENV_DIR=env, MPLBACKEND="Agg")
+    cp3 = subprocess.run([sys.executable, script], cwd=work, env=env3, capture_output=True, text=True, timeout=900)
+    o3 = cp3.stdout
+    check("notebook runs with HF screens and env files", cp3.returncode == 0)
+    if cp3.returncode:
+        print(cp3.stderr[-2000:])
+    check("screen gate: better arm PASS, worse arm FAIL",
+          any(l.startswith("levelpin") and l.rstrip().endswith("PASS") for l in o3.splitlines())
+          and any(l.startswith("deep140") and l.rstrip().endswith("FAIL") for l in o3.splitlines()))
+    check("screen gate: arms without traces reported missing", "hf-harn-pastnotes" in o3 and "MISSING screen (skipped)" in o3)
+    check("public-set table printed", "base, repeat" in o3)
+    check("calibration printed with its as-of date and dropped zeros",
+          "hidden draws as of 2026-10-28; failed 0.00 draws dropped: 3" in o3 and "SCREEN_CALIB vs-base" in o3)
+    check("calibration map is the repo's screen_kernel_map.json", B.calib_map()["kernels"] ==
+          json.load(open(os.path.join(HERE, "screen_kernel_map.json"), encoding="utf-8"))["kernels"])
     rc = B.main(["--out", os.path.join(tmp, "nb", "x.ipynb")])
     check("cli writes a valid notebook", rc == 0 and json.load(open(os.path.join(tmp, "nb", "x.ipynb")))["nbformat"] == 4)
+    check("cli writes LF line endings on every OS (.ipynb is eol=lf)",
+          b"\r\n" not in open(os.path.join(tmp, "nb", "x.ipynb"), "rb").read())
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 print("%d failed" % len(FAILS))

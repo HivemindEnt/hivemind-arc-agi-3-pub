@@ -383,5 +383,269 @@ class CompactPace(unittest.TestCase):
             self.assertEqual(meta["id"], "hivemindadmin/duck-franzen-m2-%s-loadsim" % arm)
             self.assertTrue("".join(nb["cells"][at + 1]["source"]).startswith(bac.BENCH_MARKER))
 
+class TestEffort(unittest.TestCase):
+    """DUCK 38cu: reasoning_effort throughput arms."""
+
+    TEMPLATE = ("{%- set resolved_reasoning_effort = reasoning_effort|default('xhigh') %}"
+                "{%- if resolved_reasoning_effort not in ('xhigh', 'medium', 'low') %}{%- endif %}")
+
+    def _fake(self, ladder=None):
+        ta = types.ModuleType("inference.agent.tool_agent")
+
+        class ToolAgent:
+            # mirrors M2's ToolAgent._harness_template_kwargs (harness patch, tool_agent.py)
+            def _harness_template_kwargs(self):
+                kw = {"preserve_thinking": True}
+                rung = getattr(self, "_reasoning_effort_rung", -1)
+                if ladder and 0 <= rung < len(ladder):
+                    kw["reasoning_effort"] = ladder[rung]
+                return kw
+        ta.ToolAgent = ToolAgent
+        pkg = types.ModuleType("inference"); ag = types.ModuleType("inference.agent")
+        pkg.agent, ag.tool_agent = ag, ta
+        return {"inference": pkg, "inference.agent": ag, "inference.agent.tool_agent": ta}
+
+    def _run(self, arm, mods, model_dir=None):
+        with unittest.mock.patch.dict(sys.modules, mods):
+            g = {}
+            if model_dir is not None:
+                g["MODEL_DIR"] = model_dir
+            exec(compile(bac.cell_for(arm), arm, "exec"), g)
+        return mods["inference.agent.tool_agent"].ToolAgent
+
+    def _tdir(self, text):
+        d = tempfile.mkdtemp()
+        open(os.path.join(d, "chat_template.jinja"), "w").write(text)
+        return d
+
+    def test_sets_effort_and_keeps_preserve_thinking(self):
+        for level in ("medium", "low"):
+            cls = self._run("effort-" + level, self._fake(), self._tdir(self.TEMPLATE))
+            kw = cls()._harness_template_kwargs()
+            self.assertEqual(kw, {"preserve_thinking": True, "reasoning_effort": level})
+
+    def test_m2_ladder_still_wins_when_active(self):
+        cls = self._run("effort-medium", self._fake(ladder=["low"]), self._tdir(self.TEMPLATE))
+        a = cls(); a._reasoning_effort_rung = 0
+        self.assertEqual(a._harness_template_kwargs()["reasoning_effort"], "low")
+
+    def test_refuses_template_without_switch(self):
+        with self.assertRaises(RuntimeError):
+            self._run("effort-medium", self._fake(), self._tdir("{{ messages }}"))
+
+    def test_refuses_on_changed_harness(self):
+        mods = self._fake()
+        del mods["inference.agent.tool_agent"].ToolAgent._harness_template_kwargs
+        with self.assertRaises(RuntimeError):
+            self._run("effort-low", mods, self._tdir(self.TEMPLATE))
+
+    def test_runs_without_model_dir(self):
+        cls = self._run("effort-low", self._fake())
+        self.assertEqual(cls()._harness_template_kwargs()["reasoning_effort"], "low")
+
+    def test_real_harness_still_has_the_hook(self):
+        src = os.path.expanduser("~/m2/kaggle-franzen-m2-loadsim/duck-franzen-m2-loadsim.ipynb")
+        if not os.path.isfile(src):
+            self.skipTest("no M2 loadsim source here")
+        txt = "".join("".join(c["source"]) for c in json.load(open(src, encoding="utf-8"))["cells"])
+        self.assertIn("def _harness_template_kwargs(self)", txt)
+        self.assertIn("template_kwargs.update(self._harness_template_kwargs())", txt)
+        self.assertIn('"--chat-template", str(tmpl)', txt)
+
+    def test_markers_and_no_em_dash(self):
+        for arm in ("effort-medium", "effort-low"):
+            c = bac.cell_for(arm)
+            self.assertIn("[EFFORT]", c)
+            self.assertNotIn("\u2014", c)
+
+
+class TestWorldmodelCell(unittest.TestCase):
+    """DUCK 38cv: worldmodel arm cell (sandbox helpers + guidance)."""
+    BOOT = CtrlprobeCell.BOOT
+
+    def run_cell(self, boot):
+        sb = types.ModuleType("inference.agent.python_tool_sandbox"); sb._SANDBOX_BOOTSTRAP = boot
+        ta = types.ModuleType("inference.agent.tool_agent"); ta._build_system_prompt = lambda **k: "BASE"
+        pkg = types.ModuleType("inference"); agent = types.ModuleType("inference.agent")
+        pkg.agent = agent; agent.python_tool_sandbox = sb; agent.tool_agent = ta
+        mods = {"inference": pkg, "inference.agent": agent, "inference.agent.python_tool_sandbox": sb,
+                "inference.agent.tool_agent": ta}
+        with unittest.mock.patch.dict(sys.modules, mods):
+            exec(compile(bac.cell_for("worldmodel"), "cell", "exec"), {})
+        return sb, ta
+
+    def test_helpers_live_in_sandbox_and_read_state_at_call_time(self):
+        sb, ta = self.run_cell(self.BOOT)
+        ns = {}
+        exec(compile(sb._SANDBOX_BOOTSTRAP, "boot", "exec"), ns)
+        rg = ns["main"]()
+        for name in ("grid", "check_model", "plan", "action"):
+            self.assertIn(name, rg)
+
+        class Fr:
+            def __init__(self, rows, level=1):
+                self.ascii, self.level = "\n".join(rows), level
+
+        class Tr:
+            def __init__(self, a, b, c):
+                self.action, self.before_frame, self.after_frame, self.result = a, Fr(b), Fr(c), {}
+        step = lambda b, a: [r.replace("P.", ".P") for r in b] if a == "RIGHT" else b
+        rg["transitions"] = [Tr("RIGHT", ["P.."], [".P."])]
+        rg["current_frame"] = Fr([".P."])
+        rg["valid_actions"] = ["RIGHT", "RESET"]
+        self.assertEqual(rg["check_model"](step)["exact"], 1)
+        self.assertEqual(rg["plan"](step, lambda b: b[0].endswith("P"))["actions"], ["RIGHT"])
+        self.assertTrue(ta._build_system_prompt().startswith("BASE"))
+        self.assertIn("check_model(step)", ta._build_system_prompt())
+
+    def test_refuses_when_anchor_missing(self):
+        with self.assertRaises(RuntimeError):
+            self.run_cell("def main():\n    return {}\n")
+
+    def test_against_the_real_m2_bootstrap(self):
+        import ast, textwrap
+        path = os.path.expanduser("~/m2/arc-agi-3-solution/ARC3-Inference/inference/agent/python_tool_sandbox.py")
+        if not os.path.exists(path):
+            self.skipTest("M2 source not present on this host")
+        tree = ast.parse(open(path, encoding="utf-8").read())
+        boot = None
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "_SANDBOX_BOOTSTRAP" for t in node.targets):
+                boot = [textwrap.dedent(c.args[0].value) for c in ast.walk(node.value)
+                        if isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "dedent"][0]
+        self.assertIsNotNone(boot)
+        sb, _ = self.run_cell(boot)
+        out = sb._SANDBOX_BOOTSTRAP
+        upd = [l for l in out.split("\n") if l.strip() == "runtime_globals.update(make_worldmodel(runtime_globals))"]
+        act = [l for l in out.split("\n") if l.strip() == 'runtime_globals["action"] = action']
+        self.assertEqual((len(upd), len(act)), (1, 1))
+        ind = lambda l: len(l) - len(l.lstrip())
+        self.assertEqual(ind(upd[0]), ind(act[0]))
+
+    def test_marker_and_no_em_dash(self):
+        c = bac.cell_for("worldmodel")
+        self.assertIn("[WORLDMODEL]", c)
+        self.assertNotIn("—", c + bac.WORLDMODEL_GUIDANCE)
+
+
+class TestCombined(unittest.TestCase):
+    """DUCK 38cw: combined arms."""
+
+    def test_joins_cells_in_order_with_both_markers(self):
+        c = bac.cell_for("effort-low+worldmodel")
+        self.assertLess(c.index("[EFFORT]"), c.index("[WORLDMODEL]"))
+        compile(c, "combo", "exec")
+
+    def test_rejects_unknown_duplicate_or_empty_parts(self):
+        for bad in ("effort-low+nope", "worldmodel+worldmodel", "effort-low+"):
+            with self.assertRaises(ValueError):
+                bac.cell_for(bad)
+
+    def test_build_on_real_notebook(self):
+        src = os.path.expanduser("~/m2/kaggle-franzen-m2-loadsim")
+        if not os.path.isdir(src):
+            self.skipTest("no M2 loadsim source here")
+        out, at = bac.build("effort-medium+worldmodel", src, tempfile.mkdtemp(), "combo-loadsim")
+        meta = json.load(open(os.path.join(out, "kernel-metadata.json")))
+        nb = json.load(open(os.path.join(out, meta["code_file"]), encoding="utf-8"))
+        cell = "".join(nb["cells"][at]["source"])
+        self.assertIn("[EFFORT]", cell)
+        self.assertIn("[WORLDMODEL]", cell)
+        self.assertTrue("".join(nb["cells"][at + 1]["source"]).startswith(bac.BENCH_MARKER))
+
+
+
+class TestWorldmodel2Cell(unittest.TestCase):
+    """plan: worldmodel2 = worldmodel cell + enforced stall checkpoint on ToolAgent._build_user_prompt."""
+    BOOT = CtrlprobeCell.BOOT
+
+    def run_cell(self, with_class=True, twice=False, arm="worldmodel2"):
+        sb = types.ModuleType("inference.agent.python_tool_sandbox"); sb._SANDBOX_BOOTSTRAP = self.BOOT
+        ta = types.ModuleType("inference.agent.tool_agent"); ta._build_system_prompt = lambda **k: "BASE"
+        if with_class:
+            class ToolAgent:
+                def _build_user_prompt(self, action_num, *, valid_actions=None, current_frame=None,
+                                       history_entries=None, previous_step_summary=None):
+                    return "USER"
+            ta.ToolAgent = ToolAgent
+        pkg = types.ModuleType("inference"); agent = types.ModuleType("inference.agent")
+        pkg.agent = agent; agent.python_tool_sandbox = sb; agent.tool_agent = ta
+        mods = {"inference": pkg, "inference.agent": agent, "inference.agent.python_tool_sandbox": sb,
+                "inference.agent.tool_agent": ta}
+        with unittest.mock.patch.dict(sys.modules, mods):
+            exec(compile(bac.cell_for(arm), "cell", "exec"), {})
+            if twice:
+                exec(compile(bac.cell_for(arm), "cell", "exec"), {})
+        return sb, ta
+
+    def test_installs_helpers_guidance_and_checkpoint(self):
+        sb, ta = self.run_cell()
+        self.assertIn("make_worldmodel", sb._SANDBOX_BOOTSTRAP)
+        self.assertIn("check_model(step)", ta._build_system_prompt())
+
+        class Fr:
+            def __init__(self, level, step):
+                self.level, self.step = level, step
+
+        class E:
+            def __init__(self, a, step):
+                self.action, self.frame = a, Fr(1, step)
+        agent = ta.ToolAgent()
+        h = [E("", 0)] + [E("UP", i + 1) for i in range(35)]
+        p = agent._build_user_prompt(35, valid_actions=["UP"], current_frame=Fr(1, 35), history_entries=h)
+        self.assertTrue(p.startswith("World-model checkpoint (FI-939 wm2)"))
+        self.assertTrue(p.endswith("USER"))
+        p2 = agent._build_user_prompt(35, valid_actions=["UP"], current_frame=Fr(1, 35), history_entries=h[:10])
+        self.assertEqual(p2, "USER")
+
+    def test_worldmodel3_checkpoint_uses_run_plan_and_wm2_does_not(self):
+        class Fr:
+            def __init__(self, level, step):
+                self.level, self.step = level, step
+
+        class E:
+            def __init__(self, a, step):
+                self.action, self.frame = a, Fr(1, step)
+        h = [E("", 0)] + [E("UP", i + 1) for i in range(35)]
+        out = {}
+        for arm in ("worldmodel2", "worldmodel3"):
+            sb, ta = self.run_cell(arm=arm)
+            p = ta.ToolAgent()._build_user_prompt(35, valid_actions=["UP"], current_frame=Fr(1, 35), history_entries=h)
+            out[arm] = (p, ta._build_system_prompt(), sb._SANDBOX_BOOTSTRAP)
+        self.assertNotIn("run_plan(step, result", out["worldmodel2"][0])
+        self.assertIn("run_plan(step, result['actions'])", out["worldmodel3"][0])
+        self.assertIn("`run_plan(step, actions, edge=0)`", out["worldmodel3"][1])
+        self.assertNotIn("run_plan(step, actions, edge=0)`", out["worldmodel2"][1])
+        self.assertIn("def run_plan(", out["worldmodel3"][2])
+        self.assertIn("[WM3]", bac.cell_for("worldmodel3"))
+        compile(bac.cell_for("worldmodel3"), "wm3", "exec")
+
+    def test_refuses_without_toolagent(self):
+        with self.assertRaises(RuntimeError):
+            self.run_cell(with_class=False)
+
+    def test_refuses_double_install(self):
+        with self.assertRaises(RuntimeError):
+            self.run_cell(twice=True)
+
+    def test_markers_compile_and_no_em_dash(self):
+        c = bac.cell_for("worldmodel2")
+        self.assertIn("[WORLDMODEL]", c)
+        self.assertIn("[WM2]", c)
+        self.assertNotIn("\u2014", c)
+        compile(c, "wm2", "exec")
+
+    def test_build_on_real_notebook(self):
+        src = os.path.expanduser("~/m2/kaggle-franzen-m2-loadsim")
+        if not os.path.isdir(src):
+            self.skipTest("no M2 loadsim source here")
+        out, at = bac.build("worldmodel2", src, tempfile.mkdtemp(), "worldmodel2-loadsim")
+        meta = json.load(open(os.path.join(out, "kernel-metadata.json")))
+        nb = json.load(open(os.path.join(out, meta["code_file"]), encoding="utf-8"))
+        cell = "".join(nb["cells"][at]["source"])
+        self.assertIn("[WM2]", cell)
+        self.assertTrue("".join(nb["cells"][at + 1]["source"]).startswith(bac.BENCH_MARKER))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -62,6 +62,37 @@ null. Every result below is labelled as holding, mixed, or withdrawn.
 - **Queued:** ctrlprobe v2, level inventory, trackrecord (`trackrecord.py`), and Apache-licensed model swaps
   (Qwen3.8-27B, gpt-oss-120b, Gemma-4-31B).
 
+## Public evaluation set, official metric (2026-10-27)
+
+Every offline screen (25 public games x 4 passes, same notebook and hardware class as the scored run), scored with
+the competition formula: per completed level min((human / agent actions)^2, 1.15), weighted by level number,
+averaged over games. Values are the mean of the four per-pass scores, with the pass-to-pass sd
+(`paper_public_eval.py`).
+
+| Run | Official % (sd) | Held-out 14 % (sd) | Levels per pass | Loss from unfinished levels |
+|---|---|---|---|---|
+| base | 44.4 (2.7) | 52.1 (5.9) | 97.8 | 97% |
+| base, repeat | 45.0 (3.5) | 51.7 (1.1) | 97.0 | 98% |
+| pastnotes (searchable log of own turns) | 43.5 (4.1) | 50.9 (5.7) | 96.0 | 98% |
+| KTO fine-tune on own winning turns (two runs) | 41.4 / 42.1 | 50.5 / 49.5 | 94.8 / 94.5 | 97-99% |
+| worldmodel (model-written simulator + planner) | 41.6 (4.3) | 48.5 (3.8) | 92.2 | 98% |
+| worldmodel, enforced checkpoint | 41.0 (2.4) | 44.2 (4.7) | 92.0 | 99% |
+| per-board action history in the prompt | 40.7 (3.7) | 47.7 (2.7) | 93.0 | 98% |
+| rolling history compaction every 32k tokens | 39.9 (4.3) | 47.9 (3.6) | 88.8 | 99% |
+| pin the agent's own winning turns per solved level | 39.1 (4.0) | 50.7 (4.0) | 91.0 | 97% |
+| repeat an effective single move automatically | 34.8 (4.9) | 42.8 (6.1) | 86.0 | 96% |
+| clear history when a level stalls | 34.8 (1.9) | 40.9 (2.9) | 84.2 | 99% |
+| reasoning effort medium | 34.4 (3.8) | 40.0 (6.8) | 85.0 | 97% |
+| short context, twice the games at once | 32.0 (5.4) | 39.7 (8.7) | 81.2 | 98% |
+| reasoning effort low | 12.2 (2.3) | 13.4 (4.6) | 51.0 | 95% |
+
+- No change scored above the base. Changes that cut reasoning per turn or the agent's own history lost the most.
+- In every run, 95-99% of the lost score is levels never cleared; extra actions on cleared levels cost almost
+  nothing. Efficiency-oriented harness work had little to recover.
+- Two of these runs came back without their uploaded results (signed upload URLs expired with short-lived
+  credentials); `hf_results_bundle.py` now also carries a reduced, checksummed copy of the results through the
+  job's console log, and `screen_readout.py` reads either form.
+
 ## Reading the hidden leaderboard
 
 - Two identical submissions agreeing closely says little about the noise. With one degree of freedom, the

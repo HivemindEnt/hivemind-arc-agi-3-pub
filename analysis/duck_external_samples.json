@@ -1,0 +1,43 @@
+{
+ "_doc": "FI-939: public-leaderboard scores of runs whose configuration is IDENTICAL to one of our kernels AND whose run environment is believed equivalent. experiment_ledger.vs_base uses them ONLY to widen the base's measured spread (noise threshold) and the --power estimate; they never change the base mean or n. Add a score only with its evidence.",
+ "_retired_2026-10-05": "duck-franzen-m2 public scores 27.89 (dfranzen), 27.80 (skarin), 27.62 (shiiin9 resubmission), 31.47 (best on dfranzen's page) were REMOVED as noise samples. Our own two runs of the same code scored 25.54 and 25.51 (spread 0.03), so run-to-run noise for one kernel is small and the ~2.2-point gap to the 27.6-27.9 public cluster looks SYSTEMATIC (something about our fork or how it is pushed/submitted), not noise. Treating them as noise had inflated the decision threshold to 5.93 and the samples-per-side estimate to ~18 for +2 (DUCK 38m); see DUCK 38s.",
+ "duck-franzen-m2": {
+  "scores": [],
+  "evidence": "none: see _retired_2026-10-05"
+ },
+ "_doc_references": "FI-939 38bn: 'references' are hidden scores of IDENTICAL code submitted from OTHER accounts. experiment_ledger prints them next to our base with the gap; they are never pooled as noise. 38bq CAVEAT: the notebook page's 'Best Score' is the best over EVERYONE who submitted that public version as-is (Kaggle allows submit-without-rerun; 986 copies), so 34.30/31.47/31.06 are max-selected and inflate the gap. The unselected public runs (27.62-27.89) are the fairer reference (gap ~2.2).",
+ "references": {
+  "duck-franzen-m2": [
+   {
+    "score": 34.3,
+    "who": "dfranzen notebook V1 (milestone version; best score on his page)",
+    "seen": "2026-10-08"
+   },
+   {
+    "score": 31.06,
+    "who": "dfranzen notebook V3 (same code, +3/-3 commit-run config only; his page public score)",
+    "seen": "2026-10-08"
+   },
+   {
+    "score": 31.47,
+    "who": "dfranzen page best score as read on 2026-10-04 (38m)",
+    "seen": "2026-10-04"
+   },
+   {
+    "score": 27.89,
+    "who": "dfranzen public LB / writeup",
+    "seen": "2026-10-01"
+   },
+   {
+    "score": 27.8,
+    "who": "skarin 100-trajectory audit (setup identical, 38l)",
+    "seen": "2026-10-04"
+   },
+   {
+    "score": 27.62,
+    "who": "shiiin9 unchanged resubmission (38m)",
+    "seen": "2026-10-04"
+   }
+  ]
+ }
+}

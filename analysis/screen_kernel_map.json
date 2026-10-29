@@ -1,0 +1,16 @@
+{
+ "_why": "FI-939 screen_calibration.py: each scored kernel slug -> the HF screen trace dirs (under ~/m2/traces) that ran the SAME config, complete runs only. base = the default config, screened as the pooled hf-base runs. hidden_pool: a slug whose hidden score pools several slugs that submitted the same config (M2 v3 base, plus the serverguard and loadguard guards that leave play unchanged and became the standing default; DUCK 38eg/38ep). Add a row when an arm is both screened and submitted.",
+ "_excluded": "hf-harn-levelpin (stopped after 13 min by the 38dt output-length gate) and hf-harn-levelpin-r2 (completed, results lost to ExpiredToken; DUCK 38et/38ev) are partial or empty, so only -r3 counts.",
+ "base": "duck-franzen-m2-loadguard-lb",
+ "hidden_pool": {
+  "duck-franzen-m2-loadguard-lb": ["duck-franzen-m2", "duck-franzen-m2-serverguard-lb", "duck-franzen-m2-loadguard-lb"]
+ },
+ "kernels": {
+  "duck-franzen-m2-loadguard-lb": ["hf-base", "hf-base-r2"],
+  "duck-franzen-m2-levelpin-lb": ["hf-harn-levelpin-r3"],
+  "duck-franzen-m2-freshlook-lb": ["hf-harn-freshlook"],
+  "duck-franzen-m2-aggr1-lb": ["hf-harn-aggr1"],
+  "duck-franzen-m2-lora-g5-lb": ["hf-lora-g5"],
+  "duck-franzen-m2-deep140-lb": ["hf-harn-deep140"]
+ }
+}
