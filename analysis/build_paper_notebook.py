@@ -40,13 +40,13 @@ SCREEN_ARMS = [("freshlook", "hf-harn-freshlook"), ("pastnotes", "hf-harn-pastno
                ("effort-medium", "hf-effort-medium"), ("effort-low", "hf-effort-low"), ("KTO-G5", "hf-lora-g5"),
                ("KTO-G12", "hf-lora-g12"), ("KTO-G12r", "hf-lora-g12r")]
 HELDOUT = ["ar25", "bp35", "cd82", "dc22", "g50t", "ka59", "lp85", "r11l", "re86", "sb26", "sk48", "su15", "tu93", "vc33"]
-# Hidden-set draws per kernel from the Kaggle submissions API (hivemindadmin), as of 2026-10-28 14:00Z. 0.00 = a failed
+# Hidden-set draws per kernel from the Kaggle submissions API (hivemindadmin), as of 2026-10-29 10:16Z. 0.00 = a failed
 # scored run (platform slow-load failure); screen_calibration drops those. Leaderboard data cannot be recomputed from
 # traces, so it is embedded here and dated.
-HIDDEN_AS_OF = "2026-10-28"
+HIDDEN_AS_OF = "2026-10-29"
 HIDDEN_SCORES = {
     "duck-franzen-m2-serverguard-lb": [25.54, 25.51, 26.59, 26.43, 26.93, 27.16, 29.10, 26.65, 27.01, 24.47, 0.0, 0.0],
-    "duck-franzen-m2-loadguard-lb": [26.04],
+    "duck-franzen-m2-loadguard-lb": [26.04, 23.32],   # 23.32 = 10-29 draw (ref 57754091, the standing default)
     "duck-franzen-m2-levelpin-lb": [28.46],
     "duck-franzen-m2-lora-g5-lb": [24.12],
     "duck-franzen-m2-aggr1-lb": [18.03],

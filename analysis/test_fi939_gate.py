@@ -51,6 +51,19 @@ class Gate(unittest.TestCase):
         c = {k: v for k, v in b.items() if k != HELD[0]}
         self.assertEqual(G.evaluate(b, c, HELD)["verdict"], "CANNOT_EVALUATE")
 
+    def test_p_better_mirrors_p_worse(self):
+        # DUCK 38fi: uniformly better -> p_better tiny, p_worse 1; uniformly worse -> the reverse; verdict unchanged by it
+        b = mk(lambda i: 2)
+        up = G.evaluate(b, mk(lambda i: 3), HELD)
+        self.assertLess(up["p_better"], 0.001)
+        self.assertEqual(up["p_worse"], 1.0)
+        self.assertEqual(up["verdict"], "PASS")
+        down = G.evaluate(b, mk(lambda i: 1), HELD)
+        self.assertEqual(down["p_better"], 1.0)
+        self.assertLess(down["p_worse"], 0.001)
+        same = G.evaluate(b, b, HELD)
+        self.assertEqual(same["p_better"], 1.0)
+
     def test_exact_matches_known_value(self):
         # 3 nonzero diffs all negative: only the all-negative assignment is <= obs -> 1/8
         self.assertAlmostEqual(G.sign_flip_p_worse([-1, -1, -1, 0]), 1 / 8)

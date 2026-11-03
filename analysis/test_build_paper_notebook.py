@@ -110,7 +110,7 @@ try:
     check("screen gate: arms without traces reported missing", "hf-harn-pastnotes" in o3 and "MISSING screen (skipped)" in o3)
     check("public-set table printed", "base, repeat" in o3)
     check("calibration printed with its as-of date and dropped zeros",
-          "hidden draws as of 2026-10-28; failed 0.00 draws dropped: 3" in o3 and "SCREEN_CALIB vs-base" in o3)
+          ("hidden draws as of %s; failed 0.00 draws dropped: 3" % B.HIDDEN_AS_OF) in o3 and "SCREEN_CALIB vs-base" in o3)
     check("calibration map is the repo's screen_kernel_map.json", B.calib_map()["kernels"] ==
           json.load(open(os.path.join(HERE, "screen_kernel_map.json"), encoding="utf-8"))["kernels"])
     rc = B.main(["--out", os.path.join(tmp, "nb", "x.ipynb")])

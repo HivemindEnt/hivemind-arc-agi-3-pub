@@ -79,6 +79,10 @@ def evaluate(base, cand, heldout, alpha=0.05, min_games=20, min_heldout_gain_pct
     hb, hc = sum(mb[k] for k in heldout), sum(mc[k] for k in heldout)
     diffs = [mc[k] - mb[k] for k in games]
     p = sign_flip_p_worse(diffs)
+    # DUCK 38fi (2026-10-29): p_better, the one-sided mirror of p_worse (sign flip on the NEGATED per-game diffs). The
+    # throughput theory test (38fd) pre-registered "supports" as all levels >= +5% AND p_better < 0.05; until now it was
+    # computed by a one-off script. Informational only: the slot verdict below still uses p_worse alone.
+    p_better = sign_flip_p_worse([-d for d in diffs])
     out.update({
         "total_base": round(tb, 3), "total_cand": round(tc, 3), "total_pct": round(100 * (tc - tb) / tb, 2) if tb else None,
         "heldout_base": round(hb, 3), "heldout_cand": round(hc, 3),
@@ -86,6 +90,7 @@ def evaluate(base, cand, heldout, alpha=0.05, min_games=20, min_heldout_gain_pct
         "up_same_down": [sum(mc[k] > mb[k] for k in games), sum(mc[k] == mb[k] for k in games),
                          sum(mc[k] < mb[k] for k in games)],
         "p_worse": round(p, 4),
+        "p_better": round(p_better, 6),
         "rule_heldout_not_worse": (hc >= hb) if min_heldout_gain_pct <= 0 else
                                   (hb > 0 and 100 * (hc - hb) / hb >= min_heldout_gain_pct),
         "rule_total_not_sig_worse": p >= alpha,
