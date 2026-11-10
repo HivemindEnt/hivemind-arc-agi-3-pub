@@ -1,0 +1,55 @@
+# arc-agi-3 CI (FLEETINFRA-1444): the required checks of the repo's green-CI ruleset, so the merge bot covers it.
+# Public repo: GitHub-hosted runners only (free for public repos; a fork PR must never reach a self-hosted runner).
+# Every action is pinned to a commit SHA; gitleaks is the pinned, checksum-verified CLI used across the fleet.
+name: arc-agi-3 CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      # No test suite: every Python file must at least compile, and every notebook must be valid JSON.
+      - run: |
+          python -m compileall -q $(git ls-files '*.py') || exit 1
+          for f in $(git ls-files '*.ipynb'); do python -c "import json,sys; json.load(open(sys.argv[1]))" "$f" || exit 1; done
+  secret-scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # The v2 action needs GITLEAKS_LICENSE for organization repos (measured on field-notes); the CLI does not.
+      # GAME-88: pinned and checksum-verified, the same version and sha256 as forager, Cocktologist, honeycomb and
+      # hivemind-robotics. An unverified download would run whatever the URL served.
+      # Arch-aware (FLEETINFRA-1397) so it runs on the self-hosted arm64 runners; both checksums are the ones Cocktologist's
+      # secret-scan.yml pins from gitleaks_8.30.1_checksums.txt.
+      - name: Install gitleaks (pinned v8.30.1, checksum-verified, arch-aware)
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64)        GLARCH=x64;   GLSHA=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb ;;
+            aarch64|arm64) GLARCH=arm64; GLSHA=e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080 ;;
+            *) echo "unsupported arch: $(uname -m)"; exit 1 ;;
+          esac
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_${GLARCH}.tar.gz"
+          echo "${GLSHA}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      # Scan only history reachable from the commit under test. gitleaks' default is `git log --all`, and fetch-depth 0
+      # fetches every branch, so one finding on any other open branch (2026-10-30: a GAME-93 test fixture) failed CI
+      # on every PR in the repo. Each branch is still scanned by its own PR's run.
+      - name: Run gitleaks
+        run: ./gitleaks detect --source . --log-opts="HEAD" --redact --verbose --exit-code 1
